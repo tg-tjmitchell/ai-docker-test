@@ -19,6 +19,7 @@ LABEL org.opencontainers.image.title="ComfyUI Runner" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     COMFY_PORT=8000 \
+    JUPYTER_PORT=8888 \
     DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-lc"]
@@ -35,7 +36,7 @@ RUN set -eux; \
 # Install comfy-cli (manages ComfyUI install) & optional cloudflared
 # ---------------------------------------------------------------------------
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir comfy-cli
+    pip install --no-cache-dir comfy-cli jupyter
 
 # Cloudflared (optional; mirrors Modal image). Fail gracefully if deps missing.
 RUN set -eux; \
@@ -101,5 +102,5 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD curl -fs http://127.0.0.
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8000
+EXPOSE 8000 8888
 ENTRYPOINT ["docker-entrypoint.sh"]
