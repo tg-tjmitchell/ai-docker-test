@@ -36,7 +36,7 @@ RUN set -eux; \
 # Install comfy-cli (manages ComfyUI install) & optional cloudflared
 # ---------------------------------------------------------------------------
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir comfy-cli jupyter
+    pip install --no-cache-dir comfy-cli jupyterlab
 
 # Cloudflared (optional; mirrors Modal image). Fail gracefully if deps missing.
 RUN set -eux; \

@@ -89,15 +89,34 @@ start_comfy() {
 }
 
 start_jupyter() {
-  echo "[Jupyter] Launching notebook server on 0.0.0.0:${JUPYTER_PORT:-8888}";
-  # Generate config if not present (disable token & allow root for ease inside container)
-  jupyter notebook \
+  local port="${JUPYTER_PORT:-8888}"
+  local token_opt
+  local password_opt
+  local allow_origin_opt
+  if [[ -n "${JUPYTER_TOKEN:-}" ]]; then
+    token_opt="--ServerApp.token=${JUPYTER_TOKEN}"
+    password_opt="--ServerApp.password="
+  elif [[ -n "${JUPYTER_PASSWORD:-}" ]]; then
+    token_opt="--ServerApp.token=${JUPYTER_PASSWORD}"
+    password_opt="--ServerApp.password="
+  else
+    token_opt="--ServerApp.token="
+    password_opt="--ServerApp.password="
+  fi
+  if [[ "${JUPYTER_ALLOW_ORIGIN_ALL:-}" == "1" ]]; then
+    allow_origin_opt="--ServerApp.allow_origin=*"
+  else
+    allow_origin_opt=""
+  fi
+  echo "[Jupyter] Launching JupyterLab on 0.0.0.0:${port} (origin_all=${JUPYTER_ALLOW_ORIGIN_ALL:-0})"
+  jupyter lab \
     --ip=0.0.0.0 \
-    --port="${JUPYTER_PORT:-8888}" \
+    --port="${port}" \
     --no-browser \
-    --NotebookApp.token='' \
-    --NotebookApp.password='' \
-    --allow-root &
+    --allow-root \
+    ${token_opt} \
+    ${password_opt} \
+    ${allow_origin_opt} &
   JUPYTER_PID=$!
 }
 
