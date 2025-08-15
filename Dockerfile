@@ -61,7 +61,7 @@ RUN set -eux; \
 # Copy project files (only those needed at build time for install/config)
 # ---------------------------------------------------------------------------
 WORKDIR /workspace
-COPY plugins.csv config.ini workflow_api.json ./
+COPY plugins.csv config.ini ./
 
 # ---------------------------------------------------------------------------
 # Install custom nodes from first row of plugins.csv (comma separated)
@@ -88,10 +88,8 @@ RUN set -eux; \
     mkdir -p /root/comfy/ComfyUI/temp; \
     if [[ -f config.ini ]]; then \
     cp config.ini /root/comfy/ComfyUI/user/default/ComfyUI-Manager/config.ini; \
-    fi; \
-    if [[ -f workflow_api.json ]]; then \
-    cp workflow_api.json /root/workflow_api.json; \
     fi
+# (workflow_api.json no longer used)
 
 # Reset models directory (will be a volume) like Modal build
 RUN rm -rf /root/comfy/ComfyUI/models && mkdir -p /root/comfy/ComfyUI/models
