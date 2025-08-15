@@ -29,7 +29,7 @@ SHELL ["/bin/bash", "-lc"]
 # ---------------------------------------------------------------------------
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends git ffmpeg wget ca-certificates python3-dev build-essential libgl1 curl; \
+    apt-get install -y --no-install-recommends git ffmpeg wget ca-certificates python3-dev build-essential libgl1 curl rclone; \
     rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------

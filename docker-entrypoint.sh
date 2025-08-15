@@ -7,6 +7,44 @@ echo "Working dir: $(pwd)"
 DEFAULT_MODE=${DEFAULT_MODE:-jupyter}  # jupyter | comfy | both
 echo "Startup mode: $DEFAULT_MODE"
 
+# ---------------------------------------------------------------------------
+# Optional rclone Dropbox configuration
+# Env vars:
+#   RCLONE_DROPBOX_TOKEN_JSON  - full JSON object string for token (preferred)
+#   RCLONE_DROPBOX_ACCESS_TOKEN - bare access token (fallback; creates minimal JSON)
+# Creates /root/.config/rclone/rclone.conf if provided.
+# ---------------------------------------------------------------------------
+if [[ -n "${RCLONE_DROPBOX_TOKEN_JSON:-}" || -n "${RCLONE_DROPBOX_ACCESS_TOKEN:-}" ]]; then
+  echo "[rclone] Configuring Dropbox remote";
+  mkdir -p /root/.config/rclone;
+  RCLONE_CONF="/root/.config/rclone/rclone.conf";
+  {
+    echo "[dropbox]";
+    echo "type = dropbox";
+    if [[ -n "${RCLONE_DROPBOX_TOKEN_JSON:-}" ]]; then
+      # Don't echo full token to stdout; just write to file
+      printf 'token = %s\n' "${RCLONE_DROPBOX_TOKEN_JSON}" >> "${RCLONE_CONF}";
+    else
+      # Minimal JSON; Dropbox may still require refresh in long sessions
+      printf 'token = {"access_token":"%s","token_type":"bearer"}\n' "${RCLONE_DROPBOX_ACCESS_TOKEN}" >> "${RCLONE_CONF}";
+    fi
+  } > /dev/null 2>&1 # avoid leaking token via build logs
+  # Re-open file to append sanitized header (the token already written); ensure permissions
+  # (We separated to keep token out of logs; directly writing again for structure)
+  if [[ ! -s "${RCLONE_CONF}" ]]; then
+    # Fallback in case redirection suppressed everything (unlikely)
+    echo "[dropbox]" > "${RCLONE_CONF}";
+    echo "type = dropbox" >> "${RCLONE_CONF}";
+    if [[ -n "${RCLONE_DROPBOX_TOKEN_JSON:-}" ]]; then
+      printf 'token = %s\n' "${RCLONE_DROPBOX_TOKEN_JSON}" >> "${RCLONE_CONF}";
+    else
+      printf 'token = {"access_token":"%s","token_type":"bearer"}\n' "${RCLONE_DROPBOX_ACCESS_TOKEN}" >> "${RCLONE_CONF}";
+    fi
+  fi
+  chmod 600 "${RCLONE_CONF}" || true
+  echo "[rclone] Dropbox remote configured at ${RCLONE_CONF}"
+fi
+
 start_comfy() {
   echo "[ComfyUI] Preparing launch..."
   # Optional copy of the baked-in /root/comfy install to a user-provided directory (e.g. a mounted volume)
