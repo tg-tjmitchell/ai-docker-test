@@ -6,10 +6,10 @@ This image packages [ComfyUI](https://github.com/comfyanonymous/ComfyUI) with op
 Quick Start
 -----------
 
-CPU run:
+CPU run (GitHub Container Registry):
 
 ```
-docker run -p 8000:8000 tg-tjmitchell/comfyui-runner:latest
+docker run -p 8000:8000 ghcr.io/tg-tjmitchell/comfyui-runner:latest
 ```
 
 Extra Nodes at Runtime
