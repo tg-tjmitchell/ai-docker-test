@@ -1,0 +1,54 @@
+.git
+.gitignore
+.gitattributes
+README.md
+LICENSE
+
+# Python cache / artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Local environment / editors
+.env
+.env.*
+.venv/
+venv/
+.vscode/
+*.swp
+*.tmp
+*.log
+
+# Node / front-end (if later added)
+node_modules/
+dist/
+build/
+
+# Machine learning large data (add when present)
+models/
+checkpoints/
+datasets/
+weights/
+downloads/
+
+# ComfyUI runtime generated output (if mapped outside volume)
+output/
+outputs/
+temp/
+
+# Docker layer noise
+Dockerfile.old
+
+# Explicitly keep required build context files
+!Dockerfile
+!docker-entrypoint.sh
+!plugins.csv
+!settings.json
+!workflow_api.json
+!config.ini
+
+# If you later add a src/ directory with only app code you want included, remove the exclusion:
+# !src/
