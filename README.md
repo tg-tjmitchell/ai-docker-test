@@ -36,7 +36,7 @@ Environment Variables
 * `JUPYTER_PASSWORD` – Fallback token/password if `JUPYTER_TOKEN` unset (not hashed).
 * `JUPYTER_ALLOW_ORIGIN_ALL` – set to `1` to allow any Origin (helpful behind proxies like RunPod / cloudflared).
 * `INSTALL_EXTRA_NODES` – extra custom nodes to install at container start (only used when ComfyUI is started)
-* `COPY_COMFY_TO` – if set, on launch the baked-in `/root/comfy` tree is copied to this path (e.g. a mounted volume) and the app runs from there. Skips copy if destination already has a `ComfyUI` directory unless `COPY_COMFY_FORCE=1`.
+* `COPY_COMFY_TO` – if set, at container startup (regardless of mode) the baked-in `/root/comfy` tree is copied to this path (e.g. a mounted volume) and subsequent ComfyUI launches (now or later) run from there. Skips copy if destination already has a `ComfyUI` directory unless `COPY_COMFY_FORCE=1`.
 * `COPY_COMFY_FORCE` – set to `1` to force overwriting the destination when using `COPY_COMFY_TO`.
 * `RCLONE_DROPBOX_TOKEN_JSON` – full JSON token object for configuring a Dropbox remote (preferred over bare token).
 * `RCLONE_DROPBOX_ACCESS_TOKEN` – simple access token (fallback). A minimal JSON is synthesized; may require refresh for long sessions.
