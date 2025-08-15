@@ -32,6 +32,8 @@ Environment Variables
 * `COMFY_PORT` – ComfyUI port (default 8000)
 * `JUPYTER_PORT` – Jupyter port (default 8888)
 * `INSTALL_EXTRA_NODES` – extra custom nodes to install at container start (only used when ComfyUI is started)
+* `COPY_COMFY_TO` – if set, on launch the baked-in `/root/comfy` tree is copied to this path (e.g. a mounted volume) and the app runs from there. Skips copy if destination already has a `ComfyUI` directory unless `COPY_COMFY_FORCE=1`.
+* `COPY_COMFY_FORCE` – set to `1` to force overwriting the destination when using `COPY_COMFY_TO`.
 ```
 
 Extra Nodes at Runtime (ComfyUI)
@@ -47,3 +49,24 @@ License
 -------
 
 MIT
+
+Copying ComfyUI Install to a Volume
+-----------------------------------
+
+To persist changes (custom nodes, models metadata, etc.) outside the writable layers, you can copy the baked image install to a mounted volume at container start:
+
+```
+docker run \
+	-e DEFAULT_MODE=comfy \
+	-e COPY_COMFY_TO=/data/comfy \
+	-v $(pwd)/comfy-data:/data/comfy \
+	-p 8000:8000 ghcr.io/tg-tjmitchell/comfyui-runner:latest
+```
+
+If `/data/comfy/ComfyUI` already exists, copy is skipped. To force refresh:
+
+```
+-e COPY_COMFY_FORCE=1
+```
+
+After copying, ComfyUI launches from the destination path. This keeps the original `/root/comfy` pristine and lets you bind-mount persistent storage.
