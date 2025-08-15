@@ -12,9 +12,9 @@ ARG BASE_IMAGE=python:3.11-slim
 FROM ${BASE_IMAGE} as base
 
 LABEL org.opencontainers.image.title="ComfyUI Runner" \
-      org.opencontainers.image.source="https://github.com/tg-tjmitchell/comfyui-modal-runner" \
-      org.opencontainers.image.description="Containerized ComfyUI with plugin installation mirrored from Modal setup" \
-      org.opencontainers.image.licenses="MIT"
+    org.opencontainers.image.source="https://github.com/tg-tjmitchell/comfyui-modal-runner" \
+    org.opencontainers.image.description="Containerized ComfyUI with plugin installation mirrored from Modal setup" \
+    org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -52,16 +52,16 @@ RUN set -eux; \
 ARG ADD_NVIDIA=true
 RUN set -eux; \
     if [[ "$ADD_NVIDIA" == "true" ]]; then \
-        comfy --skip-prompt install --fast-deps --nvidia; \
+    comfy --skip-prompt install --fast-deps --nvidia; \
     else \
-        comfy --skip-prompt install --fast-deps; \
+    comfy --skip-prompt install --fast-deps; \
     fi
 
 # ---------------------------------------------------------------------------
 # Copy project files (only those needed at build time for install/config)
 # ---------------------------------------------------------------------------
 WORKDIR /workspace
-COPY plugins.csv config.ini settings.json workflow_api.json ./
+COPY plugins.csv config.ini workflow_api.json ./
 
 # ---------------------------------------------------------------------------
 # Install custom nodes from first row of plugins.csv (comma separated)
@@ -69,14 +69,14 @@ COPY plugins.csv config.ini settings.json workflow_api.json ./
 # ---------------------------------------------------------------------------
 RUN set -eux; \
     if [[ -f plugins.csv ]]; then \
-        nodes_line=$(head -n1 plugins.csv || true); \
-        if [[ -n "$nodes_line" ]]; then \
-            nodes=$(echo "$nodes_line" | tr ',' ' '); \
-            echo "Installing custom nodes: $nodes"; \
-            comfy node install --fast-deps $nodes || echo "Some node installs failed"; \
-        else \
-            echo "plugins.csv empty; skipping node install"; \
-        fi; \
+    nodes_line=$(head -n1 plugins.csv || true); \
+    if [[ -n "$nodes_line" ]]; then \
+    nodes=$(echo "$nodes_line" | tr ',' ' '); \
+    echo "Installing custom nodes: $nodes"; \
+    comfy node install --fast-deps $nodes || echo "Some node installs failed"; \
+    else \
+    echo "plugins.csv empty; skipping node install"; \
+    fi; \
     fi
 
 # ---------------------------------------------------------------------------
@@ -87,13 +87,10 @@ RUN set -eux; \
     mkdir -p /root/comfy/ComfyUI/custom_nodes/comfyui-lora-manager; \
     mkdir -p /root/comfy/ComfyUI/temp; \
     if [[ -f config.ini ]]; then \
-        cp config.ini /root/comfy/ComfyUI/user/default/ComfyUI-Manager/config.ini; \
-    fi; \
-    if [[ -f settings.json ]]; then \
-        cp settings.json /root/comfy/ComfyUI/custom_nodes/comfyui-lora-manager/settings.json; \
+    cp config.ini /root/comfy/ComfyUI/user/default/ComfyUI-Manager/config.ini; \
     fi; \
     if [[ -f workflow_api.json ]]; then \
-        cp workflow_api.json /root/workflow_api.json; \
+    cp workflow_api.json /root/workflow_api.json; \
     fi
 
 # Reset models directory (will be a volume) like Modal build
