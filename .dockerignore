@@ -1,4 +1,25 @@
+# Reduce build context size to mitigate disk usage / cache pressure
 .git
+.gitignore
+*.md
+*.log
+__pycache__/
+*.py[cod]
+*.ipynb_checkpoints/
+*.tmp
+*.cache/
+*.DS_Store
+env/
+venv/
+.venv/
+build/
+dist/
+node_modules/
+*.tar
+*.zip
+*.7z
+*.bak
+*.swp.git
 .gitignore
 .gitattributes
 README.md

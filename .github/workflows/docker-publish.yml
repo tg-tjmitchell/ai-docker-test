@@ -27,6 +27,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Pre-build cleanup (free disk space)
+        run: |
+          echo "Before cleanup:" && df -h /
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          docker system df
+          echo "After cleanup:" && df -h /
+
       - name: Derive version
         id: vars
         run: |
@@ -55,7 +65,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Bake (build all variants)
+      - name: Bake (build all variants sequentially)
         uses: docker/bake-action@v5
         with:
           files: ./docker-bake.hcl
@@ -66,6 +76,12 @@ jobs:
             *.args.VERSION=${{ steps.vars.outputs.version }}
             *.cache-from=type=registry,ref=${{ env.CACHE_REF }}
             *.cache-to=type=registry,ref=${{ env.CACHE_REF }},mode=max
+
+      - name: Post-build disk report
+        if: always()
+        run: |
+          docker system df
+          df -h /
 
       - name: Summary
         run: |
