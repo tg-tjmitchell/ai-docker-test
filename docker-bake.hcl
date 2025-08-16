@@ -2,7 +2,7 @@
 // Multi-variant build matrix for ComfyUI runner:
 //   neutral : Provider-agnostic (CUDA runtime base) – push this for general use
 //   vast    : Vast.ai optimized (uses vastai/comfy base w/ ComfyUI preinstalled)
-//   runpod  : RunPod optimized (uses runpod/comfyui base)
+//   runpod  : RunPod optimized (now using runpod/pytorch 12.8 devel base; Comfy installed here)
 //   cpu     : CPU / CI / local minimal testing (no GPU libs)
 //
 // Usage:
@@ -13,7 +13,7 @@
 //
 // Override examples:
 //   docker buildx bake --set *.args.ADD_NVIDIA=true
-//   docker buildx bake --set neutral.args.BASE_IMAGE=nvidia/cuda:12.2.2-cudnn-runtime-ubuntu22.04 neutral
+//   docker buildx bake --set neutral.args.BASE_IMAGE=nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04 neutral
 //   docker buildx bake --set neutral.tags="ghcr.io/me/comfyui:core-v1"
 //
 // Caching (recommended for CI speedups):
@@ -45,24 +45,28 @@ target "_base" {
   }
 }
 
-// Provider-neutral GPU image
+// Provider-neutral GPU image (bumped to CUDA 12.8 for Blackwell / RTX 50xx forward compatibility)
 target "neutral" {
   inherits = ["_base"]
-  args = { BASE_IMAGE = "nvidia/cuda:12.1.1-cudnn-runtime-ubuntu22.04" }
+  // Prefer runtime (smaller) -- change to *-devel if you need nvcc / build toolchain
+  args = { BASE_IMAGE = "nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04" }
   tags = ["${IMAGE_REPO}:core", "${IMAGE_REPO}:core-${VERSION}", "${IMAGE_REPO}:neutral-${VERSION}"]
 }
 
 // Vast.ai optimized
 target "vast" {
   inherits = ["_base"]
-  args = { BASE_IMAGE = "vastai/comfy:cuda12.1-ubuntu22.04" }
+  // CUDA 12.8 auto-build image (ships ComfyUI already). Pin digest for reproducibility.
+  args = { BASE_IMAGE = "vastai/comfy:cuda-12.8-auto@sha256:eec3a8a92997b18fad231d8115857893bb6a911a3722259790dc6bb84c4e2aea" }
   tags = ["${IMAGE_REPO}:vast", "${IMAGE_REPO}:vast-${VERSION}"]
 }
 
-// RunPod optimized
+// RunPod optimized (switch from runpod/comfyui:cuda12.1 to runpod/pytorch 2.8 CUDA 12.8 devel)
+// NOTE: This base does NOT contain ComfyUI, so Dockerfile will perform comfy-cli install path.
 target "runpod" {
   inherits = ["_base"]
-  args = { BASE_IMAGE = "runpod/comfyui:cuda12.1" }
+  // Devel variant (includes compiler / headers). Switch to -runtime if size is a concern.
+  args = { BASE_IMAGE = "runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04@sha256:cb154fcca15d1d6ce858cfa672b76505e30861ef981d28ec94bd44168767d853" }
   tags = ["${IMAGE_REPO}:runpod", "${IMAGE_REPO}:runpod-${VERSION}"]
 }
 

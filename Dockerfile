@@ -2,7 +2,7 @@
 ## Build (CPU example):
 ##   docker build -t comfyui-runner .
 ## Build (GPU example w/ CUDA base):
-##   docker build --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 -t comfyui-runner .
+##   docker build --build-arg BASE_IMAGE=nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04 -t comfyui-runner .
 ## Run (CPU):
 ##   docker run -p 8000:8000 comfyui-runner
 ## Run (GPU w/ NVIDIA Container Toolkit):
