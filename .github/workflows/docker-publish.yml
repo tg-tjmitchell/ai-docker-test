@@ -17,7 +17,8 @@ env:
   CACHE_REF: ghcr.io/${{ github.repository_owner }}/comfyui-runner:buildcache
 
 jobs:
-  build-matrix:
+  # Build each variant separately to avoid disk space issues
+  build-neutral:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,12 +31,25 @@ jobs:
       - name: Pre-build cleanup (free disk space)
         run: |
           echo "Before cleanup:" && df -h /
+          # Remove large unused packages and caches
           sudo rm -rf /usr/share/dotnet || true
           sudo rm -rf /opt/ghc || true
           sudo rm -rf /usr/local/lib/android || true
           sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          docker system df
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/graalvm || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          
+          # Clean package manager caches
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          
+          # Clean Docker system (but keep base layers we might need)
+          docker system prune -f --volumes || true
+          
           echo "After cleanup:" && df -h /
 
       - name: Derive version
@@ -50,13 +64,20 @@ jobs:
           echo "version=$ver" >> $GITHUB_OUTPUT
           echo "Using VERSION=$ver" | tee -a $GITHUB_STEP_SUMMARY
 
-      - name: Set up QEMU (multi-arch placeholder)
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/amd64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:buildx-stable-1
+            network=host
+          buildkitd-flags: |
+            --allow-insecure-entitlement security.insecure
+            --allow-insecure-entitlement network.host
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
@@ -65,18 +86,167 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Bake GPU variants
+
+      - name: Build and push neutral variant
         uses: docker/bake-action@v5
         with:
           files: ./docker-bake.hcl
-          # Exclude cpu target from CI (can be built manually if needed)
-          targets: neutral,vast,runpod
+          targets: neutral
           push: ${{ github.event_name != 'pull_request' }}
           set: |
             *.args.IMAGE_REPO=${{ env.IMAGE_REPO }}
             *.args.VERSION=${{ steps.vars.outputs.version }}
-            *.cache-from=type=registry,ref=${{ env.CACHE_REF }}
-            *.cache-to=type=registry,ref=${{ env.CACHE_REF }},mode=max
+            *.cache-from=type=registry,ref=${{ env.CACHE_REF }}-neutral
+            *.cache-to=type=registry,ref=${{ env.CACHE_REF }}-neutral,mode=max
+
+  build-vast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Aggressive cleanup for vast.ai build
+        run: |
+          echo "Before cleanup:" && df -h /
+          # More aggressive cleanup for the problematic vast.ai build
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/graalvm || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /usr/local/julia* || true
+          
+          # Clean package manager caches
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          sudo rm -rf /var/cache/apt/archives/* || true
+          
+          # Clean Docker system completely
+          docker system prune -af --volumes || true
+          
+          echo "After cleanup:" && df -h /
+
+      - name: Derive version
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            ver=${GITHUB_REF_NAME#v}
+          else
+            short_sha=$(echo "$GITHUB_SHA" | cut -c1-12)
+            ver=sha-${short_sha}
+          fi
+          echo "version=$ver" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:buildx-stable-1
+            network=host
+          buildkitd-flags: |
+            --allow-insecure-entitlement security.insecure
+            --allow-insecure-entitlement network.host
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push vast variant
+        uses: docker/bake-action@v5
+        with:
+          files: ./docker-bake.hcl
+          targets: vast
+          push: ${{ github.event_name != 'pull_request' }}
+          set: |
+            *.args.IMAGE_REPO=${{ env.IMAGE_REPO }}
+            *.args.VERSION=${{ steps.vars.outputs.version }}
+            *.cache-from=type=registry,ref=${{ env.CACHE_REF }}-vast
+            *.cache-to=type=registry,ref=${{ env.CACHE_REF }}-vast,mode=max
+
+  build-runpod:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pre-build cleanup
+        run: |
+          echo "Before cleanup:" && df -h /
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/graalvm || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          docker system prune -f --volumes || true
+          
+          echo "After cleanup:" && df -h /
+
+      - name: Derive version
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            ver=${GITHUB_REF_NAME#v}
+          else
+            short_sha=$(echo "$GITHUB_SHA" | cut -c1-12)
+            ver=sha-${short_sha}
+          fi
+          echo "version=$ver" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:buildx-stable-1
+            network=host
+          buildkitd-flags: |
+            --allow-insecure-entitlement security.insecure
+            --allow-insecure-entitlement network.host
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push runpod variant
+        uses: docker/bake-action@v5
+        with:
+          files: ./docker-bake.hcl
+          targets: runpod
+          push: ${{ github.event_name != 'pull_request' }}
+          set: |
+            *.args.IMAGE_REPO=${{ env.IMAGE_REPO }}
+            *.args.VERSION=${{ steps.vars.outputs.version }}
+            *.cache-from=type=registry,ref=${{ env.CACHE_REF }}-runpod
+            *.cache-to=type=registry,ref=${{ env.CACHE_REF }}-runpod,mode=max
 
       - name: Post-build disk report
         if: always()
@@ -84,11 +254,24 @@ jobs:
           docker system df
           df -h /
 
+  # Summary job that depends on all build jobs
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [build-neutral, build-vast, build-runpod]
+    if: always()
+    steps:
       - name: Summary
         run: |
-          echo "Built variants for VERSION=${{ steps.vars.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "Image repository: $IMAGE_REPO" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Variant | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| neutral | ${{ needs.build-neutral.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| vast    | ${{ needs.build-vast.result }} |" >> $GITHUB_STEP_SUMMARY  
+          echo "| runpod  | ${{ needs.build-runpod.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Image repository: ${{ env.IMAGE_REPO }}" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "Images pushed (tags include core, vast, runpod):" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Images pushed to registry" >> $GITHUB_STEP_SUMMARY
           else
-            echo "(PR build did not push images)" >> $GITHUB_STEP_SUMMARY
+            echo "ℹ️  PR build - images not pushed" >> $GITHUB_STEP_SUMMARY
+          fi
