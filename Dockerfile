@@ -32,11 +32,28 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends git ffmpeg wget ca-certificates python3-dev build-essential libgl1 curl rclone; \
     rm -rf /var/lib/apt/lists/*
 
-# ---------------------------------------------------------------------------
-# Install comfy-cli (manages ComfyUI install) & optional cloudflared
-# ---------------------------------------------------------------------------
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir comfy-cli jupyterlab
+## ---------------------------------------------------------------------------
+## Comfy / Jupyter installation (conditional)
+## This block is now resilient to using a provider image that already ships
+## with ComfyUI (e.g. vastai/comfy:* or runpod/comfyui:*). If the "comfy"
+## executable is present we skip reinstalling core and only ensure jupyterlab.
+## For custom / neutral bases (nvidia/cuda, runpod/pytorch, python:*-slim) it
+## performs a full comfy-cli driven install.
+## ---------------------------------------------------------------------------
+ARG ADD_NVIDIA=true
+RUN set -eux; \
+    if ! command -v comfy >/dev/null 2>&1; then \
+        echo "Comfy not found in base image; installing comfy-cli & JupyterLab"; \
+        pip install --no-cache-dir --upgrade pip comfy-cli jupyterlab; \
+        if [[ "$ADD_NVIDIA" == "true" ]]; then \
+            comfy --skip-prompt install --fast-deps --nvidia; \
+        else \
+            comfy --skip-prompt install --fast-deps; \
+        fi; \
+    else \
+        echo "Comfy already present; ensuring JupyterLab is available"; \
+        python -c 'import jupyterlab' 2>/dev/null || pip install --no-cache-dir jupyterlab; \
+    fi
 
 # Cloudflared (optional; mirrors Modal image). Fail gracefully if deps missing.
 RUN set -eux; \
@@ -46,17 +63,7 @@ RUN set -eux; \
     rm -f /tmp/cloudflared.deb; \
     rm -rf /var/lib/apt/lists/*
 
-# ---------------------------------------------------------------------------
-# Install ComfyUI core (with optional GPU flag)
-# Set ADD_NVIDIA=false to omit the --nvidia flag for pure CPU builds.
-# ---------------------------------------------------------------------------
-ARG ADD_NVIDIA=true
-RUN set -eux; \
-    if [[ "$ADD_NVIDIA" == "true" ]]; then \
-    comfy --skip-prompt install --fast-deps --nvidia; \
-    else \
-    comfy --skip-prompt install --fast-deps; \
-    fi
+# (Comfy core already handled above conditionally)
 
 # ---------------------------------------------------------------------------
 # Copy project files (only those needed at build time for install/config)
