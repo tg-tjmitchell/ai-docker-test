@@ -43,16 +43,16 @@ RUN set -eux; \
 ARG ADD_NVIDIA=true
 RUN set -eux; \
     if ! command -v comfy >/dev/null 2>&1; then \
-        echo "Comfy not found in base image; installing comfy-cli & JupyterLab"; \
-        pip install --no-cache-dir --upgrade pip comfy-cli jupyterlab; \
-        if [[ "$ADD_NVIDIA" == "true" ]]; then \
-            comfy --skip-prompt install --fast-deps --nvidia; \
-        else \
-            comfy --skip-prompt install --fast-deps; \
-        fi; \
+    echo "Comfy not found in base image; installing comfy-cli & JupyterLab"; \
+    pip install --no-cache-dir --upgrade pip comfy-cli jupyterlab; \
+    if [[ "$ADD_NVIDIA" == "true" ]]; then \
+    comfy --skip-prompt install --fast-deps --nvidia; \
     else \
-        echo "Comfy already present; ensuring JupyterLab is available"; \
-        python -c 'import jupyterlab' 2>/dev/null || pip install --no-cache-dir jupyterlab; \
+    comfy --skip-prompt install --fast-deps; \
+    fi; \
+    else \
+    echo "Comfy already present; ensuring JupyterLab is available"; \
+    python -c 'import jupyterlab' 2>/dev/null || pip install --no-cache-dir jupyterlab; \
     fi
 
 # Cloudflared (optional; mirrors Modal image). Fail gracefully if deps missing.

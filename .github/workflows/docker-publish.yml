@@ -1,17 +1,23 @@
-name: Build and Publish Docker Image (GHCR)
+name: Build and Publish Multi-Variant ComfyUI Images (GHCR)
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*', 'release-*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  IMAGE_NAME: comfyui-runner
+  IMAGE_REPO: ghcr.io/${{ github.repository_owner }}/comfyui-runner
+  CACHE_REF: ghcr.io/${{ github.repository_owner }}/comfyui-runner:buildcache
 
 jobs:
-  build-and-push:
+  build-matrix:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,43 +27,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (multi-arch)
+      - name: Derive version
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            ver=${GITHUB_REF_NAME#v}
+          else
+            short_sha=$(echo "$GITHUB_SHA" | cut -c1-12)
+            ver=sha-${short_sha}
+          fi
+          echo "version=$ver" >> $GITHUB_OUTPUT
+          echo "Using VERSION=$ver" | tee -a $GITHUB_STEP_SUMMARY
+
+      - name: Set up QEMU (multi-arch placeholder)
         uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: Bake (build all variants)
+        uses: docker/bake-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            BASE_IMAGE=python:3.11-slim
-            ADD_NVIDIA=true
+          files: ./docker-bake.hcl
+          targets: default
+          push: ${{ github.event_name != 'pull_request' }}
+          set: |
+            *.args.IMAGE_REPO=${{ env.IMAGE_REPO }}
+            *.args.VERSION=${{ steps.vars.outputs.version }}
+            *.cache-from=type=registry,ref=${{ env.CACHE_REF }}
+            *.cache-to=type=registry,ref=${{ env.CACHE_REF }},mode=max
 
       - name: Summary
         run: |
-          echo "Published tags:" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' >> $GITHUB_STEP_SUMMARY
+          echo "Built variants for VERSION=${{ steps.vars.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "Image repository: $IMAGE_REPO" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "Images pushed (tags include core, vast, runpod, cpu):" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "(PR build did not push images)" >> $GITHUB_STEP_SUMMARY

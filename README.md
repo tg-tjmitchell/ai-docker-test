@@ -111,3 +111,57 @@ docker run \
 ```
 
 (For frequent syncs you could run rclone sidecar or a cron within the container.)
+
+Build Matrix / Variants
+-----------------------
+
+This repo now includes a `docker-bake.hcl` so you can efficiently build multiple image variants from the single `Dockerfile`:
+
+Variants:
+
+* `core` (tag: `:core`) – Provider-neutral GPU image based on `nvidia/cuda:12.1.1-cudnn-runtime-ubuntu22.04`.
+* `vast` (tag: `:vast`) – Uses `vastai/comfy:cuda12.1-ubuntu22.04` to minimize startup work on Vast.ai hosts.
+* `runpod` (tag: `:runpod`) – Uses `runpod/comfyui:cuda12.1` for minimal work on RunPod.
+* `cpu` (tag: `:cpu`) – CPU/testing variant from `python:3.11-slim` with `ADD_NVIDIA=false`.
+
+Each variant only adds your custom nodes/config layers; provider images that already ship ComfyUI skip a redundant install thanks to a conditional in the `Dockerfile`.
+
+docker buildx bake usage examples:
+
+```
+# Build neutral core variant (local)
+docker buildx bake neutral
+
+# Build Vast.ai + RunPod optimized variants together
+docker buildx bake vast runpod
+
+# Build all variants
+docker buildx bake all
+
+# Build & push (after login) to the configured IMAGE_REPO
+docker buildx bake all --push
+
+# Override image repo / version on the fly
+docker buildx bake neutral --set *.args.IMAGE_REPO=ghcr.io/your/repo --set *.args.VERSION=0.1.0
+```
+
+Makefile shortcuts (optional):
+
+```
+make neutral            # builds :core variant
+make vast runpod cpu    # builds each respectively
+make all                # builds every target
+make push               # builds & pushes all variants
+```
+
+Caching: Use registry cache to accelerate CI incremental builds:
+
+```
+docker buildx bake all \
+	--set *.cache-from=type=registry,ref=ghcr.io/you/comfyui-runner:buildcache \
+	--set *.cache-to=type=registry,ref=ghcr.io/you/comfyui-runner:buildcache,mode=max
+```
+
+Digest pinning: For reproducibility you can replace tag strings in `docker-bake.hcl` with immutable digests (`image@sha256:...`).
+
+Why a bake file? It centralizes variant definitions so CI or local commands build a consistent matrix without duplicating Dockerfiles; `buildx bake` also schedules builds in parallel where possible and shares cached layers among targets.
