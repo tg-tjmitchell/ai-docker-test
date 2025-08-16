@@ -35,7 +35,8 @@ group "default" { targets = ["neutral", "vast", "runpod", "cpu"] }
 target "_base" {
   context    = "."
   dockerfile = "Dockerfile"
-  platforms  = [var.PLATFORM]
+  // Use the PLATFORM variable (override with: docker buildx bake --set *.platform=linux/amd64,linux/arm64)
+  platforms  = ["${PLATFORM}"]
   args = {
     ADD_NVIDIA = ADD_NVIDIA
   }
