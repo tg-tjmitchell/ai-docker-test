@@ -19,6 +19,7 @@ env:
 jobs:
   # Build each variant separately to avoid disk space issues
   build-neutral:
+    if: false  # Temporarily disabled
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -257,7 +258,7 @@ jobs:
   # Summary job that depends on all build jobs
   build-summary:
     runs-on: ubuntu-latest
-    needs: [build-neutral, build-vast, build-runpod]
+    needs: [build-vast, build-runpod]
     if: always()
     steps:
       - name: Summary
@@ -265,9 +266,10 @@ jobs:
           echo "## Build Results" >> $GITHUB_STEP_SUMMARY
           echo "| Variant | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| neutral | ${{ needs.build-neutral.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| vast    | ${{ needs.build-vast.result }} |" >> $GITHUB_STEP_SUMMARY  
           echo "| runpod  | ${{ needs.build-runpod.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_Note: neutral build temporarily disabled_" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Image repository: ${{ env.IMAGE_REPO }}" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.event_name }}" != "pull_request" ]]; then
