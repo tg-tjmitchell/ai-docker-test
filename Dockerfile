@@ -19,7 +19,6 @@ LABEL org.opencontainers.image.title="ComfyUI Runner" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     COMFY_PORT=8000 \
-    JUPYTER_PORT=8888 \
     DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-lc"]
@@ -33,26 +32,23 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 ## ---------------------------------------------------------------------------
-## Comfy / Jupyter installation (conditional)
-## This block is now resilient to using a provider image that already ships
-## with ComfyUI (e.g. vastai/comfy:* or runpod/comfyui:*). If the "comfy"
-## executable is present we skip reinstalling core and only ensure jupyterlab.
-## For custom / neutral bases (nvidia/cuda, runpod/pytorch, python:*-slim) it
-## performs a full comfy-cli driven install.
+## Comfy installation (Jupyter disabled)
+## JupyterLab support has been temporarily disabled. This block only ensures
+## ComfyUI is present (or installs it if missing). If using a provider image
+## that already ships ComfyUI, we skip reinstallation.
 ## ---------------------------------------------------------------------------
 ARG ADD_NVIDIA=true
 RUN set -eux; \
     if ! command -v comfy >/dev/null 2>&1; then \
-    echo "Comfy not found in base image; installing comfy-cli & JupyterLab"; \
-    pip install --no-cache-dir --upgrade pip comfy-cli jupyterlab; \
+    echo "Comfy not found in base image; installing comfy-cli (Jupyter disabled)"; \
+    pip install --no-cache-dir --upgrade pip comfy-cli; \
     if [[ "$ADD_NVIDIA" == "true" ]]; then \
     comfy --skip-prompt install --fast-deps --nvidia; \
     else \
     comfy --skip-prompt install --fast-deps; \
     fi; \
     else \
-    echo "Comfy already present; ensuring JupyterLab is available"; \
-    python -c 'import jupyterlab' 2>/dev/null || pip install --no-cache-dir jupyterlab; \
+    echo "Comfy already present; (Jupyter disabled, skipping jupyterlab ensure)"; \
     fi
 
 # Cloudflared (optional; mirrors Modal image). Fail gracefully if deps missing.
@@ -109,5 +105,5 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=5 CMD curl -fs http://127.0.0.
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8000 8888
+EXPOSE 8000
 ENTRYPOINT ["docker-entrypoint.sh"]

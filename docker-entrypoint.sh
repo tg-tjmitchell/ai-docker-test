@@ -4,8 +4,8 @@ set -euo pipefail
 echo "[Entrypoint] Starting container..."
 echo "Python version: $(python -V)"
 echo "Working dir: $(pwd)"
-DEFAULT_MODE=${DEFAULT_MODE:-jupyter}  # jupyter | comfy | both
-echo "Startup mode: $DEFAULT_MODE"
+DEFAULT_MODE=${DEFAULT_MODE:-comfy}  # comfy (Jupyter disabled)
+echo "Startup mode: $DEFAULT_MODE (Jupyter disabled)"
 
 # Prepare (and optionally copy) ComfyUI install regardless of launch mode so
 # that Jupyter-only sessions can still explore/modify a writable copy.
@@ -90,55 +90,24 @@ start_comfy() {
   popd >/dev/null || true
 }
 
+## Jupyter disabled placeholder
 start_jupyter() {
-  local port="${JUPYTER_PORT:-8888}"
-  local token_opt
-  local password_opt
-  local allow_origin_opt
-  if [[ -n "${JUPYTER_TOKEN:-}" ]]; then
-    token_opt="--ServerApp.token=${JUPYTER_TOKEN}"
-    password_opt="--ServerApp.password="
-  elif [[ -n "${JUPYTER_PASSWORD:-}" ]]; then
-    token_opt="--ServerApp.token=${JUPYTER_PASSWORD}"
-    password_opt="--ServerApp.password="
-  else
-    token_opt="--ServerApp.token="
-    password_opt="--ServerApp.password="
-  fi
-  if [[ "${JUPYTER_ALLOW_ORIGIN_ALL:-}" == "1" ]]; then
-    allow_origin_opt="--ServerApp.allow_origin=*"
-  else
-    allow_origin_opt=""
-  fi
-  echo "[Jupyter] Launching JupyterLab on 0.0.0.0:${port} (origin_all=${JUPYTER_ALLOW_ORIGIN_ALL:-0})"
-  jupyter lab \
-    --ip=0.0.0.0 \
-    --port="${port}" \
-    --no-browser \
-    --allow-root \
-    ${token_opt} \
-    ${password_opt} \
-    ${allow_origin_opt} &
-  JUPYTER_PID=$!
+  echo "[Jupyter] Disabled in this image build. No action taken." >&2
+  return 0
 }
 
 case "$DEFAULT_MODE" in
-  jupyter)
-    start_jupyter
-    wait $JUPYTER_PID
-    ;;
   comfy)
     start_comfy
     wait $COMFY_PID
     ;;
-  both)
+  jupyter|both)
+    echo "[Warn] DEFAULT_MODE=$DEFAULT_MODE requested but Jupyter is disabled; starting ComfyUI only." >&2
     start_comfy
-    start_jupyter
-    # Wait on both processes; exit if either terminates
-    wait -n $COMFY_PID $JUPYTER_PID
+    wait $COMFY_PID
     ;;
   *)
-    echo "Unknown DEFAULT_MODE '$DEFAULT_MODE' (expected jupyter|comfy|both)" >&2
+    echo "Unknown DEFAULT_MODE '$DEFAULT_MODE' (expected comfy)" >&2
     exit 1
     ;;
 esac
