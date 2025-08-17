@@ -168,6 +168,8 @@ jobs:
 
       - name: Build and push vast variant
         uses: docker/bake-action@v5
+        env:
+          BUILDKIT_PROGRESS: plain
         with:
           files: ./docker-bake.hcl
           targets: vast
@@ -175,6 +177,9 @@ jobs:
           set: |
             *.args.IMAGE_REPO=${{ env.IMAGE_REPO }}
             *.args.VERSION=${{ steps.vars.outputs.version }}
+            *.args.DEBUG_COMFY=2
+            # Force rebuild of comfy layer to show debug output
+            *.no-cache=true
             *.cache-from=type=registry,ref=${{ env.CACHE_REF }}-vast
             *.cache-to=type=registry,ref=${{ env.CACHE_REF }}-vast,mode=max
 
@@ -239,6 +244,8 @@ jobs:
 
       - name: Build and push runpod variant
         uses: docker/bake-action@v5
+        env:
+          BUILDKIT_PROGRESS: plain
         with:
           files: ./docker-bake.hcl
           targets: runpod
@@ -246,6 +253,9 @@ jobs:
           set: |
             *.args.IMAGE_REPO=${{ env.IMAGE_REPO }}
             *.args.VERSION=${{ steps.vars.outputs.version }}
+            *.args.DEBUG_COMFY=2
+            # Force rebuild of comfy layer to show debug output
+            *.no-cache=true
             *.cache-from=type=registry,ref=${{ env.CACHE_REF }}-runpod
             *.cache-to=type=registry,ref=${{ env.CACHE_REF }}-runpod,mode=max
 
