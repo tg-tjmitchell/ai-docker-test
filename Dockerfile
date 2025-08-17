@@ -38,18 +38,41 @@ RUN set -eux; \
 ## that already ships ComfyUI, we skip reinstallation.
 ## ---------------------------------------------------------------------------
 ARG ADD_NVIDIA=true
+# Enable extra debug output during comfy detection/install (set to 0 to disable)
+ARG DEBUG_COMFY=1
 RUN set -eux; \
-    if ! command -v comfy >/dev/null 2>&1; then \
-    echo "Comfy not found in base image; installing comfy-cli (Jupyter disabled)"; \
-    pip install --no-cache-dir --upgrade pip comfy-cli; \
-    if [[ "$ADD_NVIDIA" == "true" ]]; then \
-    comfy --skip-prompt install --fast-deps --nvidia; \
-    else \
-    comfy --skip-prompt install --fast-deps; \
-    fi; \
-    else \
-    echo "Comfy already present; (Jupyter disabled, skipping jupyterlab ensure)"; \
-    fi
+        echo "[Comfy][Debug] Base image: ${BASE_IMAGE}"; \
+        echo "[Comfy][Debug] ADD_NVIDIA=${ADD_NVIDIA} DEBUG_COMFY=${DEBUG_COMFY}"; \
+        echo "[Comfy][Debug] PATH=$PATH"; \
+        echo "[Comfy][Debug] Python: $(command -v python || true)"; \
+        python --version || true; \
+        if [[ "${DEBUG_COMFY}" == "1" ]]; then \
+            echo "[Comfy][Debug] Listing potential bin directories"; \
+            for d in /usr/local/bin /usr/bin /root/.local/bin /opt/conda/bin; do \
+                [[ -d "$d" ]] && echo "--- $d" && ls -1 "$d" | grep -i comfy || true; \
+            done; \
+        fi; \
+        if ! command -v comfy >/dev/null 2>&1; then \
+            echo "[Comfy][Info] 'comfy' not found in base image; installing comfy-cli (Jupyter disabled)"; \
+            pip install --no-cache-dir --upgrade pip comfy-cli || { echo "[Comfy][Error] pip install failed" >&2; exit 1; }; \
+            hash -r || true; \
+            if ! command -v comfy >/dev/null 2>&1; then \
+                echo "[Comfy][Warn] 'comfy' still not on PATH after install. Dumping debug info."; \
+                python -c 'import sys,sysconfig,os;print("executable=",sys.executable);print("version=",sys.version);import shutil;print("which comfy=",shutil.which("comfy"));print(sysconfig.get_paths())' || true; \
+                find / -maxdepth 4 -type f -name 'comfy' 2>/dev/null | head -n 20 || true; \
+            fi; \
+            if [[ "$ADD_NVIDIA" == "true" ]]; then \
+                echo "[Comfy][Info] Running comfy install with NVIDIA flags"; \
+                comfy --skip-prompt install --fast-deps --nvidia || { echo "[Comfy][Error] comfy install (nvidia) failed" >&2; exit 1; }; \
+            else \
+                echo "[Comfy][Info] Running comfy install (CPU)"; \
+                comfy --skip-prompt install --fast-deps || { echo "[Comfy][Error] comfy install (cpu) failed" >&2; exit 1; }; \
+            fi; \
+        else \
+            echo "[Comfy][Info] 'comfy' already present; (Jupyter disabled, skipping jupyterlab ensure)"; \
+            command -v comfy; \
+            comfy --version || true; \
+        fi
 
 # Cloudflared (optional; mirrors Modal image). Fail gracefully if deps missing.
 RUN set -eux; \
